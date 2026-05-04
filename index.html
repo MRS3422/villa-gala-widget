@@ -6,44 +6,13 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      width: 100%; height: 100%;
+      width: 100%;
+      height: 100%;
       background: transparent;
       overflow: hidden;
+      /* Transparent aux clics partout SAUF sur le widget */
       pointer-events: none;
     }
-
-    /* L'orbe custom */
-    #orb {
-      pointer-events: auto;
-      position: fixed;
-      bottom: 16px;
-      right: 16px;
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: #1a1a1a;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.35);
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.2s, box-shadow 0.2s;
-      animation: pulse 3s ease-in-out infinite;
-      z-index: 100;
-    }
-    #orb:hover {
-      transform: scale(1.08);
-      box-shadow: 0 6px 30px rgba(0,0,0,0.45);
-    }
-    #orb.hidden { display: none; }
-
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 4px 24px rgba(0,0,0,0.35); }
-      50% { box-shadow: 0 4px 24px rgba(0,0,0,0.35), 0 0 0 8px rgba(26,26,26,0.12); }
-    }
-
-    /* Le widget ElevenLabs — on cache son bouton natif, on garde le panel d'appel */
     elevenlabs-convai {
       pointer-events: auto;
       position: fixed;
@@ -54,68 +23,21 @@
 </head>
 <body>
 
-  <!-- Notre orbe custom -->
-  <button id="orb" title="Parler au concierge">
-    <!-- Icône micro -->
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 1C10.34 1 9 2.34 9 4V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V4C15 2.34 13.66 1 12 1Z" fill="white"/>
-      <path d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.92V21H13V18.92C16.39 18.43 19 15.53 19 12H17Z" fill="white"/>
-    </svg>
-  </button>
-
-  <!-- Widget ElevenLabs (son panel s'affiche au-dessus de l'orbe pendant l'appel) -->
   <elevenlabs-convai
-    agent-id="agent_4501kqssdf63e1qsqw3j0rx7b25f"
-    id="el-widget">
+    agent-id="agent_4501kqssdf63e1qsqw3j0rx7b25f">
   </elevenlabs-convai>
 
   <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 
   <script>
-    var orbEl = document.getElementById('orb');
-    var widget = null;
-    var isOpen = false;
-
-    // Cacher le bouton natif ElevenLabs, montrer seulement pendant l'appel
-    function hideNativeTrigger() {
-      if (!widget || !widget.shadowRoot) { setTimeout(hideNativeTrigger, 300); return; }
-      var style = document.createElement('style');
-      // On cible les wrappers du trigger natif - si hors appel, on cache
-      style.textContent = `
-        :host { --trigger-display: none; }
-      `;
-      widget.shadowRoot.appendChild(style);
-    }
-
-    // Déclencher la conversation en cliquant le bouton interne
-    function triggerCall() {
-      if (!widget || !widget.shadowRoot) return;
-      var btn = widget.shadowRoot.querySelector('button');
-      if (btn) {
-        btn.click();
-      }
-    }
-
-    orbEl.addEventListener('click', function() {
-      triggerCall();
-    });
-
-    function setOpen(open) {
-      isOpen = open;
-      orbEl.classList.toggle('hidden', open);
-      // Redimensionner l'iframe côté parent
-      window.parent.postMessage({
-        type: open ? 'WIDGET_OPEN' : 'WIDGET_CLOSE'
-      }, '*');
-    }
-
     function init() {
-      widget = document.getElementById('el-widget');
+      var widget = document.querySelector('elevenlabs-convai');
       if (!widget) { setTimeout(init, 300); return; }
 
-      // Enregistrer le client tool de navigation
       widget.addEventListener('elevenlabs-convai:call', function(event) {
-        setOpen(true);
+        // Agrandir l'iframe quand l'appel démarre
+        window.parent.postMessage({ type: 'WIDGET_OPEN' }, '*');
+
         event.detail.config.clientTools = {
           navigateToPage: function(params) {
             var url = params && params.url;
@@ -127,15 +49,15 @@
       });
 
       widget.addEventListener('elevenlabs-convai:disconnect', function() {
-        setOpen(false);
+        // Réduire l'iframe quand l'appel se termine
+        window.parent.postMessage({ type: 'WIDGET_CLOSE' }, '*');
       });
-
-      hideNativeTrigger();
     }
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', init);
     } else { init(); }
   </script>
+
 </body>
 </html>
