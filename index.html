@@ -1,222 +1,230 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Custom ElevenLabs Voice Orb</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    :root {
-      --orb-base: #6366f1;
-      --orb-listening: #06b6d4;
-      --orb-speaking: #ec4899;
-      --bg: #0b0f1a;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      height: 100%;
-      background: radial-gradient(circle at 50% 50%, #1a1f3a 0%, var(--bg) 70%);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #e5e7eb;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 2rem;
+      width: 100%; height: 100%;
+      background: transparent;
       overflow: hidden;
     }
-    .orb-wrapper {
-      position: relative;
-      width: 220px;
-      height: 220px;
+
+    #orb {
+      position: fixed;
+      bottom: 15px;
+      right: 15px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: none;
       cursor: pointer;
+      background: radial-gradient(circle at 35% 35%, #6fa3ff, #1a4fff 55%, #0a2bd4);
+      box-shadow: 0 4px 20px rgba(26,79,255,0.55);
       display: flex;
       align-items: center;
       justify-content: center;
+      z-index: 10;
+      animation: pulse 2.5s ease-in-out infinite;
+      transition: transform 0.2s;
     }
-    .orb {
-      width: 160px;
-      height: 160px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, var(--orb-base), #1e1b4b 70%);
-      box-shadow:
-        0 0 60px 10px var(--orb-base),
-        inset 0 0 40px rgba(255,255,255,0.2);
-      transition: background 0.4s ease, box-shadow 0.4s ease, transform 0.2s ease;
-      animation: idle 4s ease-in-out infinite;
+    #orb:hover { transform: scale(1.1); }
+    #orb svg { width: 26px; height: 26px; pointer-events: none; }
+
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 4px 20px rgba(26,79,255,0.55); }
+      50%      { box-shadow: 0 4px 20px rgba(26,79,255,0.55), 0 0 0 10px rgba(26,79,255,0.15); }
     }
-    .orb-wrapper.listening .orb {
-      background: radial-gradient(circle at 30% 30%, var(--orb-listening), #082f49 70%);
-      box-shadow: 0 0 80px 15px var(--orb-listening), inset 0 0 40px rgba(255,255,255,0.3);
-      animation: listening 1.4s ease-in-out infinite;
+
+    #panel {
+      position: fixed;
+      bottom: 85px;
+      right: 15px;
+      width: 280px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+      padding: 18px;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
-    .orb-wrapper.speaking .orb {
-      background: radial-gradient(circle at 30% 30%, var(--orb-speaking), #500724 70%);
-      box-shadow: 0 0 100px 20px var(--orb-speaking), inset 0 0 40px rgba(255,255,255,0.4);
-      animation: speaking 0.6s ease-in-out infinite;
+    #panel.open { display: flex; }
+
+    #panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
-    .orb-wrapper.connecting .orb {
-      animation: connecting 1s linear infinite;
+    #panel-title { font-size: 14px; font-weight: 600; color: #111; }
+    #btn-close {
+      background: none; border: none; cursor: pointer;
+      font-size: 18px; color: #999; padding: 2px 6px;
+      border-radius: 6px;
     }
-    .orb-wrapper:hover .orb { transform: scale(1.05); }
-    .orb-wrapper:active .orb { transform: scale(0.96); }
-    @keyframes idle {
-      0%,100% { transform: scale(1); }
-      50% { transform: scale(1.04); }
+    #btn-close:hover { background: #f0f0f0; }
+
+    #viz {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      height: 44px;
     }
-    @keyframes listening {
-      0%,100% { transform: scale(1); }
-      50% { transform: scale(1.08); }
+    .bar {
+      width: 4px;
+      height: 8px;
+      border-radius: 4px;
+      background: #1a4fff;
     }
-    @keyframes speaking {
-      0%,100% { transform: scale(1.02); }
-      25% { transform: scale(1.12); }
-      50% { transform: scale(1.05); }
-      75% { transform: scale(1.15); }
+    #viz.listening .bar { animation: barAnim 1.2s ease-in-out infinite; }
+    #viz.speaking  .bar { animation: barAnim 0.5s ease-in-out infinite; }
+    #viz.listening .bar:nth-child(2) { animation-delay: 0.2s; }
+    #viz.listening .bar:nth-child(3) { animation-delay: 0.4s; }
+    #viz.listening .bar:nth-child(4) { animation-delay: 0.1s; }
+    #viz.listening .bar:nth-child(5) { animation-delay: 0.3s; }
+    #viz.speaking  .bar:nth-child(2) { animation-delay: 0.1s; }
+    #viz.speaking  .bar:nth-child(3) { animation-delay: 0.2s; }
+    #viz.speaking  .bar:nth-child(4) { animation-delay: 0.05s; }
+    #viz.speaking  .bar:nth-child(5) { animation-delay: 0.15s; }
+    @keyframes barAnim {
+      0%,100% { height: 8px; opacity: 0.4; }
+      50%      { height: 30px; opacity: 1; }
     }
-    @keyframes connecting {
-      0% { transform: rotate(0) scale(1); opacity: 0.7; }
-      50% { transform: rotate(180deg) scale(1.05); opacity: 1; }
-      100% { transform: rotate(360deg) scale(1); opacity: 0.7; }
+
+    #status { text-align: center; font-size: 13px; color: #666; }
+
+    #btn-end {
+      background: #111; color: #fff; border: none;
+      border-radius: 10px; padding: 11px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
     }
-    .ring {
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.08);
-      pointer-events: none;
+    #btn-end:hover { background: #333; }
+
+    #branding { text-align: center; font-size: 10px; color: #bbb; }
+
+    #error { color: #e53e3e; font-size: 12px; text-align: center; }
+
+    @media (max-width: 420px) {
+      #panel { width: calc(100vw - 30px); right: 15px; }
     }
-    .status {
-      font-size: 0.95rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      opacity: 0.7;
-      min-height: 1.2em;
-    }
-    .hint { font-size: 0.85rem; opacity: 0.4; }
-    .error { color: #f87171; font-size: 0.85rem; max-width: 300px; text-align: center; }
   </style>
 </head>
 <body>
-  <h1 style="font-weight:300; letter-spacing:0.05em;">Voice Agent</h1>
-  <div id="orbWrapper" class="orb-wrapper" role="button" aria-label="Start voice conversation">
-    <div class="ring"></div>
-    <div class="orb"></div>
+
+  <button id="orb" title="Parler au concierge">
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M12 2C10.34 2 9 3.34 9 5v7c0 1.66 1.34 3 3 3s3-1.34 3-3V5c0-1.66-1.34-3-3-3z" fill="white"/>
+      <path d="M17 12c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V22h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="white"/>
+    </svg>
+  </button>
+
+  <div id="panel">
+    <div id="panel-header">
+      <span id="panel-title">Concierge Villa Gala</span>
+      <button id="btn-close">✕</button>
+    </div>
+    <div id="viz">
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+      <div class="bar"></div>
+    </div>
+    <div id="status">Connexion…</div>
+    <div id="error"></div>
+    <button id="btn-end">Terminer</button>
+    <div id="branding">Powered by H'COM × ElevenLabs</div>
   </div>
-  <div id="status" class="status">Tap to start</div>
-  <div class="hint">Click the orb to talk · Click again to stop</div>
-  <div id="error" class="error"></div>
 
   <script type="module">
-    import { Conversation } from "https://esm.sh/@elevenlabs/client";
+    import { Conversation } from 'https://esm.sh/@elevenlabs/client';
 
-    // 🔧 Replace by your public agent ID from ElevenLabs UI
-    const AGENT_ID = "agent_4501kqssdf63e1qsqw3j0rx7b25f";
+    const AGENT_ID = 'agent_4501kqssdf63e1qsqw3j0rx7b25f';
 
-    const orbWrapper = document.getElementById("orbWrapper");
-    const statusEl   = document.getElementById("status");
-    const errorEl    = document.getElementById("error");
+    const orb    = document.getElementById('orb');
+    const panel  = document.getElementById('panel');
+    const status = document.getElementById('status');
+    const viz    = document.getElementById('viz');
+    const error  = document.getElementById('error');
+    const btnEnd   = document.getElementById('btn-end');
+    const btnClose = document.getElementById('btn-close');
 
-    let conversation = null;
-    let connecting   = false;
+    let conv = null;
 
-    function setState(state) {
-      orbWrapper.classList.remove("listening", "speaking", "connecting");
-      if (state) orbWrapper.classList.add(state);
-    }
-    function setStatus(text)  { statusEl.textContent = text; }
-    function setError(text)   { errorEl.textContent  = text || ""; }
+    function setViz(mode) { viz.className = mode || ''; }
+    function setStatus(t) { status.textContent = t; }
+    function setError(t)  { error.textContent  = t || ''; }
 
-    async function startConversation() {
-      if (conversation || connecting) return;
-      connecting = true;
-      setError("");
-      setState("connecting");
-      setStatus("Connecting…");
+    async function start() {
+      setError('');
+      orb.style.display = 'none';
+      panel.classList.add('open');
+      setStatus('Connexion…');
+      setViz('');
+      window.parent.postMessage({ type: 'WIDGET_OPEN' }, '*');
 
       try {
-        // 1. Ask microphone permission first (must be in a user gesture)
         await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        setError('Microphone refusé. Veuillez autoriser.');
+        return;
+      }
 
-        // 2. Start the ElevenLabs session (WebRTC by default for voice)
-        conversation = await Conversation.startSession({
+      try {
+        conv = await Conversation.startSession({
           agentId: AGENT_ID,
-          connectionType: "webrtc",
-          onConnect: ({ conversationId }) => {
-            console.log("Connected:", conversationId);
-            setStatus("Listening…");
-            setState("listening");
+          connectionType: 'webrtc',
+
+          clientTools: {
+            navigateToPage: function(params) {
+              const url = params && params.url;
+              if (!url) return { success: false };
+              window.parent.postMessage({ type: 'DO_NAVIGATE', url }, '*');
+              return { success: true };
+            }
           },
-          onDisconnect: () => {
-            console.log("Disconnected");
-            setStatus("Tap to start");
-            setState(null);
-            conversation = null;
+
+          onConnect: () => {
+            setStatus('À votre écoute…');
+            setViz('listening');
           },
           onModeChange: ({ mode }) => {
-            // mode is "speaking" or "listening"
-            console.log("Mode:", mode);
-            setState(mode === "speaking" ? "speaking" : "listening");
-            setStatus(mode === "speaking" ? "Agent speaking…" : "Listening…");
+            if (mode === 'speaking') {
+              setStatus('Le concierge vous répond…');
+              setViz('speaking');
+            } else {
+              setStatus('À votre écoute…');
+              setViz('listening');
+            }
           },
-          onMessage: ({ message, source }) => {
-            console.log(`[${source}]`, message);
-          },
-          onStatusChange: ({ status }) => {
-            console.log("Status:", status);
-          },
-          onError: (msg, ctx) => {
-            console.error("Error:", msg, ctx);
-            setError(typeof msg === "string" ? msg : "An error occurred");
-          },
+          onDisconnect: () => stop(false),
+          onError: (msg) => setError(String(msg))
         });
-      } catch (err) {
-        console.error("Failed to start:", err);
-        setError(
-          err?.name === "NotAllowedError"
-            ? "Microphone permission denied."
-            : (err?.message || "Failed to start session")
-        );
-        setStatus("Tap to retry");
-        setState(null);
-        conversation = null;
-      } finally {
-        connecting = false;
-      }
-    }
 
-    async function stopConversation() {
-      if (!conversation) return;
-      setStatus("Disconnecting…");
-      try {
-        await conversation.endSession();
-      } catch (e) {
+      } catch(e) {
+        setError('Impossible de démarrer. Réessayez.');
         console.error(e);
       }
-      conversation = null;
-      setState(null);
-      setStatus("Tap to start");
     }
 
-    orbWrapper.addEventListener("click", () => {
-      if (conversation) stopConversation();
-      else              startConversation();
-    });
-
-    // Optional: animate orb scale based on agent output volume (works only in WebSocket mode reliably;
-    // in WebRTC the volumes are still readable). Uncomment to enable:
-    /
-    function loop() {
-      if (conversation) {
-        const out = conversation.getOutputVolume?.() ?? 0;
-        const inp = conversation.getInputVolume?.()  ?? 0;
-        const v = Math.max(out, inp);
-        const orb = orbWrapper.querySelector(".orb");
-        orb.style.transform = `scale(${1 + v * 0.4})`;
+    async function stop(manual = true) {
+      if (conv && manual) {
+        try { await conv.endSession(); } catch {}
       }
-      requestAnimationFrame(loop);
+      conv = null;
+      panel.classList.remove('open');
+      orb.style.display = 'flex';
+      setViz('');
+      window.parent.postMessage({ type: 'WIDGET_CLOSE' }, '*');
     }
-    requestAnimationFrame(loop);
-    /
+
+    orb.addEventListener('click', start);
+    btnEnd.addEventListener('click', () => stop(true));
+    btnClose.addEventListener('click', () => stop(true));
   </script>
+
 </body>
 </html>
