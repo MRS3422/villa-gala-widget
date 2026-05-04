@@ -6,23 +6,61 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
       background: transparent;
       overflow: hidden;
-      /* Transparent aux clics partout SAUF sur le widget */
       pointer-events: none;
     }
+
+    /* Notre orbe custom — copie du style ElevenLabs */
+    #custom-orb {
+      pointer-events: auto;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #5b8fff, #1a4fff 60%, #0a2bd4);
+      border: none;
+      cursor: pointer;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(26, 79, 255, 0.5);
+      animation: orbPulse 2.5s ease-in-out infinite;
+      transition: transform 0.2s;
+    }
+    #custom-orb:hover { transform: scale(1.1); }
+    #custom-orb.hidden { display: none; }
+    #custom-orb svg { width: 24px; height: 24px; }
+
+    @keyframes orbPulse {
+      0%, 100% { box-shadow: 0 4px 20px rgba(26,79,255,0.5); }
+      50%       { box-shadow: 0 4px 20px rgba(26,79,255,0.5), 0 0 0 10px rgba(26,79,255,0.12); }
+    }
+
+    /* Le widget ElevenLabs en arrière-plan */
     elevenlabs-convai {
       pointer-events: auto;
       position: fixed;
-      bottom: 16px;
-      right: 16px;
+      bottom: 20px;
+      right: 20px;
     }
   </style>
 </head>
 <body>
 
+  <!-- Orbe custom visible par défaut -->
+  <button id="custom-orb" title="Parler au concierge">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2C10.34 2 9 3.34 9 5V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V5C15 3.34 13.66 2 12 2Z" fill="white"/>
+      <path d="M17 12C17 14.76 14.76 17 12 17C9.24 17 7 14.76 7 12H5C5 15.53 7.61 18.43 11 18.92V22H13V18.92C16.39 18.43 19 15.53 19 12H17Z" fill="white"/>
+    </svg>
+  </button>
+
+  <!-- Widget ElevenLabs (bouton natif sera caché via Shadow DOM) -->
   <elevenlabs-convai
     agent-id="agent_4501kqssdf63e1qsqw3j0rx7b25f">
   </elevenlabs-convai>
@@ -30,33 +68,90 @@
   <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 
   <script>
-    function init() {
-      var widget = document.querySelector('elevenlabs-convai');
-      if (!widget) { setTimeout(init, 300); return; }
+  (function() {
+    var orb = document.getElementById('custom-orb');
+    var widget = null;
+    var shadowStyleInjected = false;
 
-      widget.addEventListener('elevenlabs-convai:call', function(event) {
-        // Agrandir l'iframe quand l'appel démarre
-        window.parent.postMessage({ type: 'WIDGET_OPEN' }, '*');
+    // ── 1. Cacher le bouton natif ElevenLabs via Shadow DOM ──────────────────
+    function hiddenNativeButton() {
+      widget = document.querySelector('elevenlabs-convai');
+      if (!widget || !widget.shadowRoot) return false;
+      if (shadowStyleInjected) return true;
 
-        event.detail.config.clientTools = {
-          navigateToPage: function(params) {
-            var url = params && params.url;
-            if (!url) return { success: false };
-            window.parent.postMessage({ type: 'DO_NAVIGATE', url: url }, '*');
-            return { success: true };
-          }
-        };
-      });
+      var style = document.createElement('style');
+      // On cible tous les wrappers du trigger natif pour les cacher
+      // Le widget natif a une div principale avec le bouton "Need help?"
+      style.textContent = `
+        [data-state="idle"] [data-testid="widget-trigger"],
+        [data-state="idle"] .convai-trigger,
+        [data-state="idle"] button[class*="trigger"],
+        [data-state="idle"] > div:first-child > button,
+        [data-state="closed"] button,
+        .widget-trigger,
+        button[class*="widget"],
+        div[class*="launcher"],
+        div[class*="trigger"] {
+          display: none !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+        }
+      `;
+      widget.shadowRoot.appendChild(style);
+      shadowStyleInjected = true;
+      return true;
+    }
 
-      widget.addEventListener('elevenlabs-convai:disconnect', function() {
-        // Réduire l'iframe quand l'appel se termine
-        window.parent.postMessage({ type: 'WIDGET_CLOSE' }, '*');
-      });
+    // ── 2. Polling robuste (même méthode que le script branding) ─────────────
+    var tries = 0;
+    var timer = setInterval(function() {
+      tries++;
+      if (hiddenNativeButton() || tries > 60) clearInterval(timer);
+    }, 200);
+
+    // ── 3. Notre orbe déclenche le widget natif ───────────────────────────────
+    orb.addEventListener('click', function() {
+      widget = document.querySelector('elevenlabs-convai');
+      if (!widget || !widget.shadowRoot) return;
+      // Cliquer le bouton interne du widget pour démarrer l'appel
+      var btn = widget.shadowRoot.querySelector('button');
+      if (btn) btn.click();
+    });
+
+    // ── 4. Gérer les états ouvert / fermé ────────────────────────────────────
+    function onCallStart(event) {
+      orb.classList.add('hidden');
+      window.parent.postMessage({ type: 'WIDGET_OPEN' }, '*');
+
+      event.detail.config.clientTools = {
+        navigateToPage: function(params) {
+          var url = params && params.url;
+          if (!url) return { success: false };
+          window.parent.postMessage({ type: 'DO_NAVIGATE', url: url }, '*');
+          return { success: true };
+        }
+      };
+    }
+
+    function onCallEnd() {
+      orb.classList.remove('hidden');
+      window.parent.postMessage({ type: 'WIDGET_CLOSE' }, '*');
+    }
+
+    function attachEvents() {
+      widget = document.querySelector('elevenlabs-convai');
+      if (!widget) { setTimeout(attachEvents, 300); return; }
+      widget.addEventListener('elevenlabs-convai:call', onCallStart);
+      widget.addEventListener('elevenlabs-convai:disconnect', onCallEnd);
     }
 
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-    } else { init(); }
+      document.addEventListener('DOMContentLoaded', attachEvents);
+    } else {
+      attachEvents();
+    }
+
+  })();
   </script>
 
 </body>
